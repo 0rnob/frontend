@@ -12,7 +12,7 @@
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/listing">Listing</RouterLink>
         <RouterLink to="/report">Report</RouterLink>
-        <RouterLink to="/track-page">Track Claim</RouterLink>
+        <RouterLink to="/track-claim">Track Claim</RouterLink>
       </nav>
 
       <RouterLink to="/login" class="login-btn">
