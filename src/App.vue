@@ -1,133 +1,36 @@
 <template>
-  <div class="page-wrapper">
-   
-    <nav class="navbar">
-      <div class="nav-container">
-        <a href="#" class="nav-brand">VU Lost & Found</a>
+  <div class="website">
 
-      
-        <button class="menu-toggle" @click="isMenuOpen = !isMenuOpen">
-          ☰
-        </button>
+    <!-- HEADER -->
+    <header class="header">
 
-        <ul :class="['nav-links', { active: isMenuOpen }]">
-          <li><a href="#">Home</a></li>
-          <li><a href="#">Lost Items</a></li>
-          <li><a href="#">Found Items</a></li>
-          <li><a href="#" class="active-link">Report Item</a></li>
-        </ul>
+      <div class="logo">
+        Lost&Found
       </div>
-    </nav>
-   
 
-    
-    <div class="report-container">
-      <h1>Report Lost or Found Item</h1>
-      <p class="subtitle">
-        Help us return lost items to their owners.
-      </p>
+      <nav class="navigation">
+        <RouterLink to="/">Home</RouterLink>
+        <RouterLink to="/listing">Listing</RouterLink>
+        <RouterLink to="/report">Report</RouterLink>
+        <RouterLink to="/track-page">Track Claim</RouterLink>
+      </nav>
 
-      <form @submit.prevent="submitReport">
-        <label>Report Type</label>
+      <RouterLink to="/login" class="login-btn">
+        Login
+      </RouterLink>
 
-        <div class="radio-group">
-          <label>
-            <input
-              type="radio"
-              value="Lost"
-              v-model="form.type"
-            />
-            Lost Item
-          </label>
+    </header>
 
-          <label>
-            <input
-              type="radio"
-              value="Found"
-              v-model="form.type"
-            />
-            Found Item
-          </label>
-        </div>
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <RouterView />
+    </main>
 
-        <label>Student Name</label>
-        <input
-          type="text"
-          v-model="form.name"
-          placeholder="Enter your name"
-          required
-        />
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>© 2026 My Website. All rights reserved.</p>
+    </footer>
 
-        <label>Phone Number</label>
-        <input
-          type="tel"
-          v-model="form.phone"
-          placeholder="Enter phone number"
-          required
-        />
-
-        <label>Item Name</label>
-        <input
-          type="text"
-          v-model="form.itemName"
-          placeholder="e.g. Mobile, Wallet, ID Card"
-          required
-        />
-
-        <label>Description</label>
-        <textarea
-          v-model="form.description"
-          placeholder="Describe the item..."
-          required
-        ></textarea>
-
-        <label>Upload Item Image</label>
-        <input
-          type="file"
-          accept="image/*"
-          @change="uploadImage"
-        />
-
-        <img
-          v-if="imagePreview"
-          :src="imagePreview"
-          class="preview"
-          alt="Item preview"
-        />
-
-        <label>Location</label>
-        <input
-          type="text"
-          v-model="form.location"
-          :placeholder="form.type === 'Lost'
-            ? 'Where did you lose it?'
-            : 'Where did you find it?'"
-          required
-        />
-
-        <label>Date</label>
-        <input
-          type="date"
-          v-model="form.date"
-          required
-        />
-
-        <label>Time</label>
-        <input
-          type="time"
-          v-model="form.time"
-          required
-        />
-
-        <button type="submit" class="submit-btn">
-          Submit Report
-        </button>
-      </form>
-
-      <p v-if="successMessage" class="success">
-        {{ successMessage }}
-      </p>
-    </div>
   </div>
 </template>
 
