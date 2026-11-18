@@ -1,6 +1,22 @@
 <script setup>
-import { ref, computed } from "vue";
-import { items } from "../data/items.js";
+import { ref, computed, onMounted } from "vue";
+import { getItems } from "../data/store.js";
+
+const allItems = ref([]);
+const loading = ref(true);
+
+onMounted(async () => {
+  loading.value = true;
+  try {
+    const backendItems = await getItems();
+    allItems.value = (backendItems || []).map((b) => ({
+      ...b,
+      category: b.type === 'found' ? 'Found' : 'Lost',
+    }));
+  } finally {
+    loading.value = false;
+  }
+});
 
 // Search and Filter
 const search = ref("");
@@ -8,18 +24,16 @@ const category = ref("All");
 
 // Filter Items
 const filteredItems = computed(() => {
-  return items.filter((item) => {
+  return allItems.value.filter((item) => {
     const keyword = search.value.trim().toLowerCase();
-
     const matchesSearch =
-      item.name.toLowerCase().includes(keyword) ||
-      item.description.toLowerCase().includes(keyword) ||
-      item.location.toLowerCase().includes(keyword);
-
+      (item.name || '').toLowerCase().includes(keyword) ||
+      (item.description || '').toLowerCase().includes(keyword) ||
+      (item.location || '').toLowerCase().includes(keyword);
     const matchesCategory =
       category.value === "All" ||
-      item.category === category.value;
-
+      (item.category || '').toLowerCase() === category.value.toLowerCase() ||
+      (item.type || '').toLowerCase() === category.value.toLowerCase();
     return matchesSearch && matchesCategory;
   });
 });
@@ -33,22 +47,21 @@ const filteredItems = computed(() => {
       <div class="container hero-content">
 
         <span class="hero-tag">
-          LOST SOMETHING? FOUND SOMETHING?
+          {{ $t('home.heroTag') }}
         </span>
 
         <h1>
-          Lost it? <span>Find it.</span>
+          {{ $t('home.heroTitle1') }}<span>{{ $t('home.heroTitle2') }}</span>
           <br />
-          Help others find theirs.
+          {{ $t('home.heroTitle3') }}
         </h1>
 
         <p>
-          A simple platform to reconnect people with their lost belongings.
-          Search, discover and report lost or found items.
+          {{ $t('home.heroDesc') }}
         </p>
 
         <a href="#items" class="primary-btn">
-          Explore Items →
+          {{ $t('home.exploreBtn') }}
         </a>
 
       </div>
@@ -75,14 +88,14 @@ const filteredItems = computed(() => {
 
           <input
             type="text"
-            placeholder="🔍 Search by item, description or location..."
+            :placeholder="$t('home.searchPlaceholder')"
             v-model="search"
           />
 
           <select v-model="category">
-            <option value="All">All Items</option>
-            <option value="Lost">Lost Items</option>
-            <option value="Found">Found Items</option>
+            <option value="All">{{ $t('common.all') }}</option>
+            <option value="Lost">{{ $t('common.lost') }}</option>
+            <option value="Found">{{ $t('common.found') }}</option>
           </select>
 
         </div>
@@ -91,14 +104,18 @@ const filteredItems = computed(() => {
         <!-- RESULT COUNT -->
         <div class="result-info">
           <p>
-            Showing <strong>{{ filteredItems.length }}</strong>
-            {{ filteredItems.length === 1 ? 'item' : 'items' }}
+            {{ $t('home.itemsCount', { count: filteredItems.length }) }}
           </p>
         </div>
 
 
         <!-- ITEMS GRID -->
-        <div class="items-grid">
+        <div v-if="loading" class="empty-state">
+          <div class="empty-icon">⏳</div>
+          <h3>{{ $t('common.loading') }}</h3>
+        </div>
+
+        <div v-else class="items-grid">
 
           <div
             v-for="item in filteredItems"
@@ -106,21 +123,17 @@ const filteredItems = computed(() => {
             class="item-card"
           >
 
-            <!-- IMAGE -->
-            <div class="image-wrapper">
-
-              <img
-                :src="item.image"
-                :alt="item.name"
-              />
-
+            <!-- ICON BANNER instead of image -->
+            <div class="image-wrapper icon-banner">
+              <span class="item-icon">
+                {{ item.category === 'Found' ? '📦' : '🔍' }}
+              </span>
               <span
                 class="status"
                 :class="item.category.toLowerCase()"
               >
                 {{ item.category }}
               </span>
-
             </div>
 
 
@@ -138,9 +151,9 @@ const filteredItems = computed(() => {
                 <span>📅 {{ item.date }}</span>
               </div>
 
-              <button class="details-btn">
-                View Details <span>→</span>
-              </button>
+              <RouterLink :to="'/item/' + item.id" class="details-btn" style="text-align: center; display: inline-flex; justify-content: center; align-items: center; text-decoration: none;">
+                {{ $t('common.viewDetails') }} <span>→</span>
+              </RouterLink>
 
             </div>
 
@@ -151,24 +164,23 @@ const filteredItems = computed(() => {
 
         <!-- EMPTY STATE -->
         <div
-          v-if="filteredItems.length === 0"
+          v-if="!loading && filteredItems.length === 0"
           class="empty-state"
         >
           <div class="empty-icon">🔎</div>
 
-          <h3>No items found!</h3>
+          <h3>{{ $t('home.noItems') }}</h3>
 
           <p>
-            Try searching with a different keyword or category.
+            {{ $t('home.noItemsSub') }}
           </p>
 
           <button
             class="reset-btn"
             @click="search = ''; category = 'All'"
           >
-            Clear Filters
+            {{ $t('common.reset') }}
           </button>
-
         </div>
 
       </div>
@@ -453,6 +465,20 @@ const filteredItems = computed(() => {
 
 .item-card:hover .image-wrapper img {
   transform: scale(1.06);
+}
+
+/* Icon banner — shown when no image */
+.icon-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #EEF2FF 0%, #E0F2FE 100%);
+}
+
+.item-icon {
+  font-size: 4rem;
+  line-height: 1;
+  opacity: 0.7;
 }
 
 

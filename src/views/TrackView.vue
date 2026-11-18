@@ -1,65 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-
-/* ==========================================================================
-   1. LOCAL DATA STORE (NO EXTERNAL FILE REQUIRED)
-   ========================================================================== */
-// Items Database
-const itemsDatabase = {
-  'item-101': {
-    id: 'item-101',
-    name: 'Casio fx-991EX ClassWiz Calculator',
-    category: 'Electronics',
-    location: 'Central Library, 2nd Floor'
-  },
-  'item-102': {
-    id: 'item-102',
-    name: 'Black Leather Wallet (with Student ID)',
-    category: 'Personal Belongings',
-    location: 'Cafeteria Ground Counter'
-  },
-  'item-103': {
-    id: 'item-103',
-    name: 'Blue North Face Backpack',
-    category: 'Bags & Luggage',
-    location: 'Auditorium Gate 2'
-  }
-}
-
-// Claims Database
-const claimsDatabase = {
-  'CLM-2026-00125': {
-    code: 'CLM-2026-00125',
-    itemId: 'item-101',
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    note: 'Your claim is currently under physical inspection by Campus Security. Estimated verification: 24–48 hours.'
-  },
-  'CLM-2026-00089': {
-    code: 'CLM-2026-00089',
-    itemId: 'item-102',
-    status: 'approved',
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    note: 'Claim verified! Please visit Room 104 with your valid Student ID card to collect your item.'
-  },
-  'CLM-2026-00042': {
-    code: 'CLM-2026-00042',
-    itemId: 'item-103',
-    status: 'rejected',
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-    note: 'Verification failed. The provided serial details or markings did not match the recovered property.'
-  }
-}
-
-// Helper Functions
-function getClaimByCode(codeStr) {
-  return claimsDatabase[codeStr] || null
-}
-
-function getItem(itemId) {
-  return itemsDatabase[itemId] || null
-}
+import { getClaimByCode } from '../data/store'
 
 function formatDate(dateStr) {
   if (!dateStr) return 'N/A'
@@ -83,7 +25,14 @@ const isLoading = ref(false)
 
 const item = computed(() => {
   if (!claim.value) return null
-  return getItem(claim.value.itemId) || {
+  if (claim.value.item) {
+    return {
+      name: claim.value.item.name || claim.value.item.itemName || 'Claimed Item',
+      category: claim.value.item.category || claim.value.item.itemType || 'General',
+      location: claim.value.item.location || claim.value.item.campusLocation || 'Campus Desk'
+    }
+  }
+  return {
     name: 'Item #' + (claim.value.itemId || 'Unknown'),
     category: 'General',
     location: 'Campus Desk'
@@ -109,7 +58,7 @@ const stepIndex = computed(() => {
 /* ==========================================================================
    3. LOOKUP FUNCTION
    ========================================================================== */
-function lookup() {
+async function lookup() {
   error.value = ''
   claim.value = null
   const query = code.value.trim().toUpperCase()
@@ -122,21 +71,18 @@ function lookup() {
   isLoading.value = true
   searched.value = true
 
-  setTimeout(() => {
-    isLoading.value = false
-    const found = getClaimByCode(query)
-
+  try {
+    const found = await getClaimByCode(query)
     if (found) {
       claim.value = found
     } else {
       error.value = `No claim found for "${query}". Please check the code and try again.`
     }
-  }, 250)
-}
-
-function setDemo(demoCode) {
-  code.value = demoCode
-  lookup()
+  } catch (err) {
+    error.value = 'Failed to load claim. Please check network connection.'
+  } finally {
+    isLoading.value = false
+  }
 }
 
 if (code.value) {
@@ -149,9 +95,9 @@ if (code.value) {
 
     <!-- HERO HEADER -->
     <div class="hero-section">
-      <div class="badge-pill">OFFICIAL STUDENT VERIFICATION PORTAL</div>
-      <h1 class="page-title">Track Your Claim</h1>
-      <p class="muted">Enter the claim code you received after submitting your claim to check real-time status.</p>
+      <div class="badge-pill">{{ $t('track.portalBadge') }}</div>
+      <h1 class="page-title">{{ $t('track.title') }}</h1>
+      <p class="muted">{{ $t('track.subtitle') }}</p>
     </div>
 
     <!-- SEARCH BAR CARD -->
@@ -165,17 +111,17 @@ if (code.value) {
           <input 
             v-model="code" 
             type="text" 
-            placeholder="e.g. CLM-2026-00125" 
+            :placeholder="$t('track.placeholder')" 
             class="input-field"
             autocomplete="off"
           />
         </div>
 
         <button type="submit" class="btn primary" :disabled="isLoading">
-          <span v-if="!isLoading">Track Claim</span>
+          <span v-if="!isLoading">{{ $t('track.trackBtn') }}</span>
           <span v-else class="btn-spinner">
             <span class="spinner-circle"></span>
-            Searching...
+            {{ $t('track.searching') }}
           </span>
         </button>
       </form>
@@ -185,19 +131,7 @@ if (code.value) {
         <span class="err-icon">⚠️</span> {{ error }}
       </div>
 
-      <!-- Quick Test Demo Chips -->
-      <div class="quick-test-row">
-        <span class="quick-label">Quick Test:</span>
-        <button type="button" class="demo-chip pending" @click="setDemo('CLM-2026-00125')">
-          <span class="dot"></span> Pending Demo
-        </button>
-        <button type="button" class="demo-chip approved" @click="setDemo('CLM-2026-00089')">
-          <span class="dot"></span> Approved Demo
-        </button>
-        <button type="button" class="demo-chip rejected" @click="setDemo('CLM-2026-00042')">
-          <span class="dot"></span> Rejected Demo
-        </button>
-      </div>
+      <!-- Quick Test Demo Chips removed - enter your real claim code above -->
     </div>
 
     <!-- RESULTS & DETAILS AREA -->

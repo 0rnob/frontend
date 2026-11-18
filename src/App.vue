@@ -3,23 +3,71 @@
 
     <!-- HEADER -->
     <header class="header">
+      <RouterLink to="/" class="logo">Lost&amp;Found</RouterLink>
 
-      <div class="logo">
-        Lost&Found
-      </div>
-
-      <nav class="navigation">
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/listing">Listing</RouterLink>
-        <RouterLink to="/report">Report</RouterLink>
-        <RouterLink to="/track-claim">Track Claim</RouterLink>
+      <!-- Desktop Nav -->
+      <nav class="navigation desktop-nav">
+        <RouterLink to="/">{{ $t('nav.home') }}</RouterLink>
+        <RouterLink to="/listing">{{ $t('nav.listing') }}</RouterLink>
+        <RouterLink to="/report">{{ $t('nav.report') }}</RouterLink>
+        <RouterLink to="/track-claim">{{ $t('nav.trackClaim') }}</RouterLink>
+        <RouterLink to="/review">{{ $t('nav.review') }}</RouterLink>
       </nav>
 
-      <RouterLink to="/login" class="login-btn">
-        Login
-      </RouterLink>
+      <!-- Right controls -->
+      <div class="header-right">
+        <button type="button" @click="toggleLang" class="lang-btn">
+          🌐 {{ locale === 'bn' ? 'EN' : 'বাং' }}
+        </button>
 
+        <RouterLink v-if="!hasToken" to="/login" class="login-btn desktop-only">
+          {{ $t('nav.login') }}
+        </RouterLink>
+        <button v-else @click="handleLogout" class="login-btn logout-btn desktop-only">
+          {{ $t('nav.logout') }}
+        </button>
+
+        <!-- Hamburger (mobile only) -->
+        <button
+          type="button"
+          class="hamburger"
+          @click="menuOpen = !menuOpen"
+          :aria-expanded="menuOpen"
+          aria-label="Toggle navigation"
+        >
+          <span></span><span></span><span></span>
+        </button>
+      </div>
     </header>
+
+    <!-- Mobile Drawer -->
+    <div v-if="menuOpen" class="mobile-overlay" @click="menuOpen = false"></div>
+    <nav v-if="menuOpen" class="mobile-nav">
+      <RouterLink to="/"            @click="menuOpen = false">{{ $t('nav.home') }}</RouterLink>
+      <RouterLink to="/listing"     @click="menuOpen = false">{{ $t('nav.listing') }}</RouterLink>
+      <RouterLink to="/report"      @click="menuOpen = false">{{ $t('nav.report') }}</RouterLink>
+      <RouterLink to="/track-claim" @click="menuOpen = false">{{ $t('nav.trackClaim') }}</RouterLink>
+      <RouterLink to="/review"      @click="menuOpen = false">{{ $t('nav.review') }}</RouterLink>
+
+      <div class="mobile-nav-footer">
+        <RouterLink
+          v-if="!hasToken"
+          to="/login"
+          class="btn btn-primary btn-block"
+          @click="menuOpen = false"
+        >
+          🔐 {{ $t('nav.login') }}
+        </RouterLink>
+        <button
+          v-else
+          type="button"
+          class="btn btn-danger btn-block"
+          @click="handleLogout(); menuOpen = false"
+        >
+          🚪 {{ $t('nav.logout') }}
+        </button>
+      </div>
+    </nav>
 
     <!-- MAIN CONTENT -->
     <main class="main-content">
@@ -28,238 +76,229 @@
 
     <!-- FOOTER -->
     <footer class="footer">
-      <p>© 2026 My Website. All rights reserved.</p>
+      <p>© 2026 Campus Lost &amp; Found System. All rights reserved.</p>
     </footer>
 
   </div>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { setLocale } from './i18n'
+import { authToken, removeAuthToken } from './api'
 
-const isMenuOpen = ref(false)
+const { locale } = useI18n()
+const router = useRouter()
+const menuOpen = ref(false)
 
-const form = reactive({
-  type: 'Lost',
-  name: '',
-  phone: '',
-  itemName: '',
-  description: '',
-  location: '',
-  date: '',
-  time: ''
-})
+const hasToken = computed(() => !!authToken.value)
 
-const imageFile = ref(null)
-const imagePreview = ref('')
-const successMessage = ref('')
-
-function uploadImage(event) {
-  const file = event.target.files[0]
-
-  if (!file) return
-
-  if (!file.type.startsWith('image/')) {
-    alert('Please select an image file.')
-    event.target.value = ''
-    return
-  }
-
-  imageFile.value = file
-
-  if (imagePreview.value) {
-    URL.revokeObjectURL(imagePreview.value)
-  }
-
-  imagePreview.value = URL.createObjectURL(file)
+function toggleLang() {
+  const next = locale.value === 'bn' ? 'en' : 'bn'
+  setLocale(next)
 }
 
-function submitReport() {
-  console.log('Report Information:', {
-    ...form,
-    image: imageFile.value
-  })
-
-  successMessage.value =
-    'Your report has been submitted successfully!'
-
-  console.log('Report Submitted!')
+function handleLogout() {
+  removeAuthToken()
+  router.push('/login')
 }
 </script>
 
-<style scoped>
-.page-wrapper {
-  min-height: 100vh;
-  background-color: #f4f6f9;
-  font-family: Arial, sans-serif;
-  padding-bottom: 40px;
-}
+<style>
+/* ── Layout ── */
+.website { display: flex; flex-direction: column; min-height: 100vh; }
+.main-content { flex: 1; }
 
-.navbar {
-  background-color: #183b64;
-  color: white;
-  padding: 14px 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 56px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
-  z-index: 1000;
-}
-
-.nav-container {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.nav-brand {
-  color: white;
-  font-size: 22px;
-  font-weight: bold;
-  text-decoration: none;
-  letter-spacing: 0.5px;
-}
-
-.nav-links {
-  list-style: none;
-  display: flex;
-  gap: 24px;
-  margin: 0;
-  padding: 0;
-}
-
-.nav-links a {
-  color: #e0e6ed;
-  text-decoration: none;
-  font-size: 16px;
-  font-weight: 500;
-  padding: 6px 10px;
-  border-radius: 5px;
-  transition: background 0.2s, color 0.2s;
-}
-
-.nav-links a:hover,
-.nav-links a.active-link {
-  background-color: #24558b;
-  color: white;
-}
-
-.menu-toggle {
-  display: none;
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-@media (max-width: 768px) {
-  .menu-toggle {
-    display: block;
-  }
-
-  .nav-links {
-    display: none;
-    width: 100%;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 14px;
-  }
-
-  .nav-links.active {
-    display: flex;
-  }
-}
-
-.report-container {
-  max-width: 650px;
-  margin: 40px auto 0;
-  padding: 30px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
-}
-
-h1 {
-  text-align: center;
-  color: #183b64;
-  margin-top: 0;
-}
-
-.subtitle {
-  text-align: center;
-  color: #777;
-  margin-bottom: 25px;
-}
-
-form {
-  display: flex;
-  flex-direction: column;
+  z-index: 100;
   gap: 12px;
 }
 
-label {
-  font-weight: bold;
-  color: #333;
+.logo {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e293b;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
-input, textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-sizing: border-box;
-  font-size: 15px;
-}
-
-textarea {
-  height: 100px;
-  resize: vertical;
-}
-
-.radio-group {
+/* ── Desktop Nav ── */
+.desktop-nav {
   display: flex;
-  gap: 30px;
-  margin-bottom: 10px;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+  flex-wrap: nowrap;
 }
 
-.radio-group label {
+.desktop-nav a {
+  text-decoration: none;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.88rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.desktop-nav a:hover,
+.desktop-nav a.router-link-active {
+  color: #2563eb;
+  background: #EEF4FF;
+  font-weight: 600;
+}
+
+/* ── Header Right ── */
+.header-right {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
-.radio-group input {
-  width: auto;
-}
-
-.preview {
-  width: 150px;
-  margin-top: 10px;
-  border-radius: 8px;
-}
-
-.submit-btn {
-  background: #183b64;
-  color: white;
-  padding: 14px;
-  border: none;
+.lang-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 16px;
+  padding: 5px 10px;
+  font-weight: 600;
   cursor: pointer;
-  margin-top: 15px;
+  font-size: 12px;
+  color: #334155;
+  white-space: nowrap;
 }
 
-.submit-btn:hover {
-  background: #24558b;
+.login-btn {
+  background: #2563eb;
+  color: #ffffff !important;
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
 }
 
-.success {
-  color: green;
+.login-btn:hover { background: #1d4ed8; }
+.logout-btn { background: #ef4444; }
+.logout-btn:hover { background: #dc2626; }
+
+/* ── Hamburger ── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.hamburger span {
+  display: block;
+  height: 2px;
+  background: #334155;
+  border-radius: 2px;
+  transition: all 0.2s;
+}
+
+/* ── Mobile Nav Drawer ── */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 150;
+}
+
+.mobile-nav {
+  display: none;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  z-index: 200;
+  flex-direction: column;
+  padding: 10px 0 16px;
+}
+
+.mobile-nav a {
+  display: block;
+  padding: 12px 24px;
+  color: #334155;
+  font-weight: 500;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+
+.mobile-nav a:hover,
+.mobile-nav a.router-link-active {
+  color: #2563eb;
+  background: #EEF4FF;
+  border-left-color: #2563eb;
+  font-weight: 600;
+}
+
+.mobile-nav-footer {
+  padding: 12px 20px 4px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 8px;
+}
+
+.mobile-nav-footer .btn-block {
+  width: 100%;
   text-align: center;
-  font-weight: bold;
-  margin-top: 15px;
+  display: block;
+}
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  padding: 20px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  color: #94a3b8;
+  font-size: 13px;
+  margin-top: 40px;
+}
+
+/* ── Responsive breakpoint ── */
+@media (max-width: 768px) {
+  .header { padding: 0 14px; }
+  .desktop-nav { display: none; }
+  .desktop-only { display: none; }
+  .hamburger { display: flex; }
+  .mobile-overlay { display: block; }
+  .mobile-nav { display: flex; }
+}
+
+@media (max-width: 480px) {
+  .lang-btn { padding: 4px 8px; font-size: 11px; }
+  .logo { font-size: 17px; }
 }
 </style>

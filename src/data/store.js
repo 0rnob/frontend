@@ -1,63 +1,142 @@
-// ---------------------------------------------------------------
-// TEMPORARY DATA LAYER (mock data + localStorage).
-// Backend team (persons 6-9) will replace these functions with real
-// fetch() calls to the API. Keep the function names so the views
-// don't need to change.
-// ---------------------------------------------------------------
+import {
+  fetchAllItems,
+  fetchItemById,
+  createItem as createItemApi,
+  patchItemStatus,
+  submitClaimApi,
+  fetchAllClaims,
+  fetchClaimByCode as fetchClaimByCodeApi,
+  approveClaimApi,
+  rejectClaimApi,
+  returnClaimApi,
+} from '../api/index'
 
-const SEED_ITEMS = [
-  { id: 1, type: 'found', name: 'Black Leather Wallet', category: 'Wallet', description: 'Black leather wallet with a few cards inside. Found near the library entrance.', date: '2026-11-12', location: 'Central Library', status: 'open' },
-  { id: 2, type: 'lost', name: 'Blue Water Bottle', category: 'Other', description: 'Blue steel water bottle with a small dent near the bottom and a sticker on the side.', date: '2026-11-10', location: 'Cafeteria', status: 'open' },
-  { id: 3, type: 'found', name: 'Silver Wrist Watch', category: 'Accessories', description: 'Silver analog watch with a brown strap. Found in the Block B washroom.', date: '2026-11-09', location: 'Academic Block B', status: 'open' },
-  { id: 4, type: 'lost', name: 'Student ID Card', category: 'ID / Cards', description: 'University student ID card. Lost somewhere between the main gate and the auditorium.', date: '2026-11-08', location: 'Main Gate', status: 'open' },
-  { id: 5, type: 'found', name: 'Wireless Earbuds', category: 'Electronics', description: 'White wireless earbuds in a charging case. Found on a bench in the playground area.', date: '2026-11-07', location: 'Playground', status: 'open' },
-  { id: 6, type: 'found', name: 'Red Backpack', category: 'Bags', description: 'Red backpack with notebooks and a calculator inside. Left in classroom 304.', date: '2026-11-05', location: 'Academic Block A', status: 'returned' },
-  { id: 7, type: 'lost', name: 'Scientific Calculator', category: 'Electronics', description: 'Casio scientific calculator with my initials scratched on the back.', date: '2026-11-04', location: 'Engineering Lab', status: 'open' },
-  { id: 8, type: 'found', name: 'House Keys', category: 'Keys', description: 'Set of three keys on a green keychain.', date: '2026-11-03', location: 'Parking Area', status: 'open' },
+export const CATEGORIES = [
+  'Wallet',
+  'Electronics',
+  'Bags',
+  'Keys',
+  'ID / Cards',
+  'Accessories',
+  'Books',
+  'Clothing',
+  'Other',
 ]
 
-export const CATEGORIES = ['Wallet', 'Electronics', 'Bags', 'Keys', 'ID / Cards', 'Accessories', 'Books', 'Clothing', 'Other']
-export const LOCATIONS = ['Central Library', 'Cafeteria', 'Academic Block A', 'Academic Block B', 'Engineering Lab', 'Main Gate', 'Parking Area', 'Playground', 'Auditorium', 'Hostel', 'Other']
+export const LOCATIONS = [
+  'Central Library',
+  'Cafeteria',
+  'Academic Block A',
+  'Academic Block B',
+  'Engineering Lab',
+  'Main Gate',
+  'Parking Area',
+  'Playground',
+  'Auditorium',
+  'Hostel',
+  'Other',
+]
 
-function load(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
+export function transformItemFromBackend(i) {
+  if (!i) return null
+  return {
+    id: i.id,
+    name: i.itemName || i.name || 'Unnamed Item',
+    type: (i.itemType || i.type || 'lost').toLowerCase(),
+    category: i.category || 'Other',
+    description: i.description || '',
+    date: i.reportDate || i.date || '',
+    location: i.campusLocation || i.location || '',
+    reporterName: i.reporterName || '',
+    reporterEmail: i.reporterEmail || '',
+    status: (i.status || 'open').toLowerCase(),
+    createdAt: i.createdAt,
   }
 }
-function save(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* ignore */ }
+
+export function transformItemToBackend(data) {
+  return {
+    itemName: data.name || data.itemName,
+    description: data.description || '',
+    itemType: (data.type || data.itemType || 'LOST').toUpperCase(),
+    reportDate: data.date || data.reportDate || new Date().toISOString().slice(0, 10),
+    campusLocation: data.location || data.campusLocation || 'Main Campus',
+    reporterName: data.reporterName || 'Anonymous',
+    reporterEmail: data.reporterEmail || 'student@example.com',
+    status: (data.status || 'OPEN').toUpperCase(),
+  }
+}
+
+export function transformClaimFromBackend(c) {
+  if (!c) return null
+  return {
+    id: c.id,
+    code: c.claimCode || c.code,
+    itemId: c.item?.id || c.itemId,
+    name: c.claimantName || c.name || '',
+    studentId: c.studentId || '',
+    email: c.claimantEmail || c.email || '',
+    proof: c.proof || (c.item ? `Claim for ${c.item.itemName || 'item'}` : 'Submitted claim'),
+    status: (c.status || 'pending').toLowerCase(),
+    createdAt: c.createdAt || new Date().toISOString(),
+    reviewedAt: c.reviewedAt,
+    item: c.item ? transformItemFromBackend(c.item) : null,
+  }
 }
 
 // ---------- ITEMS ----------
-export function getItems() {
-  const extra = load('lf_items_extra', [])
-  const overrides = load('lf_item_status', {})
-  return [...extra, ...SEED_ITEMS]
-    .map((i) => ({ ...i, status: overrides[i.id] || i.status }))
+// getItems → public pages: returned items hidden
+export async function getItems() {
+  try {
+    const list = await fetchAllItems()
+    if (Array.isArray(list)) {
+      return list
+        .map(transformItemFromBackend)
+        .filter((i) => (i.status || '').toLowerCase() !== 'returned')
+    }
+    return []
+  } catch (err) {
+    console.error('Failed to fetch items from backend:', err)
+    return []
+  }
 }
 
-export function getItem(id) {
-  return getItems().find((i) => String(i.id) === String(id)) || null
+// getAllItemsAdmin → admin dashboard: all items including returned
+export async function getAllItemsAdmin() {
+  try {
+    const list = await fetchAllItems()
+    if (Array.isArray(list)) {
+      return list.map(transformItemFromBackend)
+    }
+    return []
+  } catch (err) {
+    console.error('Failed to fetch items from backend:', err)
+    return []
+  }
 }
 
-export function addItem(data) {
-  const extra = load('lf_items_extra', [])
-  const item = { ...data, id: Date.now(), status: 'open' }
-  save('lf_items_extra', [item, ...extra])
-  return item
+export async function getItem(id) {
+  try {
+    const data = await fetchItemById(id)
+    return transformItemFromBackend(data)
+  } catch (err) {
+    console.error(`Failed to fetch item ${id} from backend:`, err)
+    return null
+  }
 }
 
-export function setItemStatus(id, status) {
-  const overrides = load('lf_item_status', {})
-  overrides[id] = status
-  save('lf_item_status', overrides)
+export async function addItem(data) {
+  const payload = transformItemToBackend(data)
+  const created = await createItemApi(payload)
+  return transformItemFromBackend(created)
+}
+
+export async function setItemStatus(id, status) {
+  const updated = await patchItemStatus(id, (status || 'OPEN').toUpperCase())
+  return transformItemFromBackend(updated)
 }
 
 // ---------- CLAIMS ----------
-// status: pending | approved | rejected | returned
 function makeCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let out = ''
@@ -65,36 +144,59 @@ function makeCode() {
   return 'LF-' + out
 }
 
-export function getClaims() {
-  return load('lf_claims', [])
-}
-
-export function submitClaim({ itemId, name, studentId, email, proof }) {
-  const claims = getClaims()
-  let code = makeCode()
-  while (claims.some((c) => c.code === code)) code = makeCode()
-  const claim = {
-    code, itemId, name, studentId, email, proof,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
+export async function getClaims() {
+  try {
+    const list = await fetchAllClaims()
+    if (Array.isArray(list)) {
+      return list.map(transformClaimFromBackend)
+    }
+    return []
+  } catch (err) {
+    console.error('Failed to fetch claims from backend:', err)
+    return []
   }
-  save('lf_claims', [claim, ...claims])
-  return claim // backend will return the generated code the same way
 }
 
-export function getClaimByCode(code) {
-  const c = (code || '').trim().toUpperCase()
-  return getClaims().find((x) => x.code === c) || null
+export async function submitClaim({ itemId, name, studentId, email, proof }) {
+  const payload = {
+    claimantName: name,
+    claimantEmail: email,
+    studentId: studentId,
+    claimCode: makeCode(),
+    status: 'PENDING',
+    item: { id: Number(itemId) },
+  }
+  const created = await submitClaimApi(payload)
+  const result = transformClaimFromBackend(created)
+  if (proof) {
+    result.proof = proof
+  }
+  return result
 }
 
-export function updateClaim(code, status) {
-  const claims = getClaims().map((c) => (c.code === code ? { ...c, status } : c))
-  save('lf_claims', claims)
-  const claim = claims.find((c) => c.code === code)
-  if (claim && status === 'returned') setItemStatus(claim.itemId, 'returned')
-  if (claim && status === 'approved') setItemStatus(claim.itemId, 'claimed')
+export async function getClaimByCode(code) {
+  try {
+    const data = await fetchClaimByCodeApi(code)
+    return transformClaimFromBackend(data)
+  } catch (err) {
+    console.error('Failed to fetch claim by code:', err)
+    return null
+  }
+}
+
+export async function updateClaim(claimId, status) {
+  const s = (status || '').toLowerCase()
+  if (s === 'approved') {
+    return approveClaimApi(claimId)
+  } else if (s === 'rejected') {
+    return rejectClaimApi(claimId)
+  } else if (s === 'returned') {
+    return returnClaimApi(claimId)
+  }
+  return null
 }
 
 export function formatDate(d) {
+  if (!d) return ''
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
